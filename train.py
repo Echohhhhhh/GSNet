@@ -24,7 +24,7 @@ sys.path.append(rootPath)
 
 from lib.dataloader import normal_and_generate_dataset_time,get_mask,get_adjacent,get_grid_node_map_maxtrix
 from lib.early_stop import EarlyStopping
-from models.GSNet import GSNet
+from model.GSNet import GSNet
 from lib.utils import mask_loss,compute_loss,predict_and_evaluate
 
 parser = argparse.ArgumentParser()
