@@ -1,0 +1,32 @@
+{
+    "west_east_map": 20,
+    "north_south_map": 20,
+    "patience": 10,
+    "delta": 1e-6,
+    "seed": 2019,
+    "data_type": "nyc",
+
+    "all_data_filename": "data/nyc/all_data.pkl",
+    "mask_filename": "data/nyc/risk_mask.pkl",
+    "road_adj_filename": "data/nyc/road_adj.pkl",
+    "risk_adj_filename": "data/nyc/risk_adj.pkl",
+    "poi_adj_filename": "data/nyc/poi_adj.pkl",
+    "grid_node_filename": "data/nyc/grid_node_map.pkl",
+    
+    "recent_prior": 3,
+    "week_prior": 4,
+    "one_day_period": 24,
+    "days_of_week": 7,
+    "pre_len": 1,
+
+    "train_rate": 0.6,
+    "valid_rate": 0.2,
+    "training_epoch": 200,
+    "optimizer": "adam",
+
+    "batch_size": 32,
+    "learning_rate": 0.00001,
+    "num_of_gru_layers": 5,
+    "gru_hidden_size": 256,
+    "gcn_num_filter": 64
+}
