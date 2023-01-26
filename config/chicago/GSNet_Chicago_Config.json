@@ -3,7 +3,7 @@
     "north_south_map": 20,
     "patience": 10,
     "delta": 1e-6,
-    "seed": 2019,
+    "seed": 12418,
     "data_type": "chicago",
 
     "all_data_filename": "data/chicago/all_data.pkl",

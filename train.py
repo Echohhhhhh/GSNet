@@ -104,7 +104,8 @@ def training(net,
         for train_feature,target_time,gragh_feature,train_label in train_loader:
             start_time = time()
             train_feature,target_time,gragh_feature,train_label = train_feature.to(device),target_time.to(device),gragh_feature.to(device),train_label.to(device)
-            l = mask_loss(net(train_feature,target_time,gragh_feature,road_adj,risk_adj,poi_adj,grid_node_map),train_label,risk_mask,data_type=data_type)#l的shape：(1,)
+            l = mask_loss(net(train_feature,target_time,gragh_feature,road_adj,risk_adj,poi_adj,grid_node_map),
+                          train_label,risk_mask,data_type=data_type)#l的shape：(1,)
             trainer.zero_grad()
             l.backward()
             trainer.step()
