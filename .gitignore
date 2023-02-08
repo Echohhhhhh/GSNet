@@ -1,0 +1,7 @@
+
+.DS_Store
+.idea/deployment.xml
+.idea/GSNet.iml
+.idea/inspectionProfiles/profiles_settings.xml
+*.xml
+*.pkl
