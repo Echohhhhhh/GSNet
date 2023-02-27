@@ -2,8 +2,8 @@
     "west_east_map": 20,
     "north_south_map": 20,
     "patience": 10,
-    "delta": 1e-6,
-    "seed": 2019,
+    "delta": 1e-5,
+    "seed": 12418,
     "data_type": "nyc",
 
     "all_data_filename": "data/nyc/all_data.pkl",
@@ -12,6 +12,10 @@
     "risk_adj_filename": "data/nyc/risk_adj.pkl",
     "poi_adj_filename": "data/nyc/poi_adj.pkl",
     "grid_node_filename": "data/nyc/grid_node_map.pkl",
+    "remote_sensing_filename": "data/nyc/all_256_16_16.pt",
+    "loss_mask_filename": "data/nyc/loss_mask.pkl",
+    "remote_sensing_path": "data/nyc_remote_transpose",
+
     
     "recent_prior": 3,
     "week_prior": 4,
@@ -25,7 +29,7 @@
     "optimizer": "adam",
 
     "batch_size": 32,
-    "learning_rate": 0.00001,
+    "learning_rate": 3e-6,
     "num_of_gru_layers": 5,
     "gru_hidden_size": 256,
     "gcn_num_filter": 64

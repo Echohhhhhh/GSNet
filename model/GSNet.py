@@ -5,6 +5,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import json
+from model.encoder import Encoder
+from model.AFF import AFF
 
 import sys
 import os
@@ -210,7 +212,7 @@ class GSNet(nn.Module):
     def __init__(self, grid_in_channel, num_of_gru_layers, seq_len, pre_len,
                  gru_hidden_size, num_of_target_time_feature,
                  num_of_graph_feature, nums_of_graph_filters,
-                 north_south_map, west_east_map):
+                 north_south_map, west_east_map, remote_sensing, is_baseline, remote_sensing_data):
         """[summary]
         
         Arguments:
@@ -226,6 +228,7 @@ class GSNet(nn.Module):
             west_east_map {int} -- the height of grid data
         """
         super(GSNet, self).__init__()
+        # self.remote_sensing = remote_sensing
         self.north_south_map = north_south_map
         self.west_east_map = west_east_map
 
@@ -236,10 +239,21 @@ class GSNet(nn.Module):
                                          seq_len, num_of_gru_layers, gru_hidden_size,
                                          num_of_target_time_feature, north_south_map, west_east_map)
 
-        fusion_channel = 16
-        self.grid_weigth = nn.Conv2d(in_channels=gru_hidden_size, out_channels=fusion_channel, kernel_size=1)
-        self.graph_weigth = nn.Conv2d(in_channels=gru_hidden_size, out_channels=fusion_channel, kernel_size=1)
-        self.output_layer = nn.Linear(fusion_channel * north_south_map * west_east_map,
+        self.fusion_channel = 16
+
+        self.grid_weight = nn.Conv2d(in_channels=gru_hidden_size, out_channels=self.fusion_channel, kernel_size=1)
+        self.graph_weight = nn.Conv2d(in_channels=gru_hidden_size, out_channels=self.fusion_channel, kernel_size=1)
+
+        self.is_baseline = is_baseline
+        if not self.is_baseline:
+            self.remote_sensing_data = remote_sensing_data
+            self.encoder = Encoder()
+            # 256,16,16 -> 16
+            self.remote_sensing_conv = nn.Conv2d(in_channels=512, out_channels=4, kernel_size=1)
+            self.remote_sensing_layer = nn.Linear(4 * 16 * 16, self.fusion_channel)
+            self.aff = AFF(self.fusion_channel, 4)
+        # batch,16,20,20
+        self.output_layer = nn.Linear(self.fusion_channel * north_south_map * west_east_map,
                                       pre_len * north_south_map * west_east_map)
 
     def forward(self, grid_input, target_time_feature, graph_feature,
@@ -263,9 +277,36 @@ class GSNet(nn.Module):
         graph_output = self.st_sem_module(graph_feature, road_adj, risk_adj, poi_adj,
                                           target_time_feature, grid_node_map)
 
-        grid_output = self.grid_weigth(grid_output)
-        graph_output = self.graph_weigth(graph_output)
-        fusion_output = (grid_output + graph_output).view(batch_size, -1)
+        # print(grid_output.shape, graph_output.shape)
+        # exit(0)
+
+        grid_output = self.grid_weight(grid_output)
+        graph_output = self.graph_weight(graph_output)
+        fusion_output = grid_output + graph_output  # 16,20,20
+
+        if not self.is_baseline:
+            # # pretrain
+            # remote_output = self.remote_sensing_conv(
+            #     remote_output.view(256 * 16 * 16, 400).permute(1, 0).view(400, 256, 16, 16))
+
+            # together
+            remote_output = self.encoder(self.remote_sensing_data)
+            remote_output = self.remote_sensing_conv(remote_output)
+
+            remote_output = self.remote_sensing_layer(remote_output.view(400, 4 * 16 * 16))
+            remote_output = remote_output.permute(1, 0).view(16, 20, 20).unsqueeze(0).repeat(batch_size, 1, 1, 1)
+            fusion_output = self.aff(fusion_output, remote_output)
+
+            # remote_output = self.remote_sensing_conv(self.remote_sensing)
+            # remote_output = self.remote_sensing_layer(remote_output.view(400, 64 * 64))
+            # remote_output = remote_output.permute(1, 0).view(16, 20, 20).unsqueeze(0).repeat(batch_size, 1, 1, 1)
+            # fusion_output = self.aff(fusion_output, remote_output)
+
+        fusion_output = fusion_output.view(batch_size, -1)
         final_output = self.output_layer(fusion_output) \
             .view(batch_size, -1, self.north_south_map, self.west_east_map)
-        return final_output
+        # classification
+        classification_output = torch.relu(final_output.view(final_output.shape[0], -1))
+        # # ranking
+        # _, classification_output = torch.sort(final_output.view(final_output.shape[0], -1))
+        return final_output, classification_output

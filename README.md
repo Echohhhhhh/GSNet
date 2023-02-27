@@ -6,7 +6,7 @@ AAAI 2021. GSNet: Learning Spatial-Temporal Correlations from Geographical and S
 
 train model on NYC:
 ```
-python train.py --config config/nyc/GSNet_NYC_Config.json --gpus 0
+python train.py --config config/nyc/GSNet_NYC_Config.json --gpus 1
 ```
 
 
