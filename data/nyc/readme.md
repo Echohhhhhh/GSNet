@@ -20,7 +20,6 @@
    47:outflow
    ***********
 
-
 2. `risk_mask.pkl`
    shape(W,H)
    top risk region mask
@@ -36,7 +35,6 @@
 5. `poi_adj.pkl`
    poi similarity graph adjacency matrix
    shape(N,N)
-
    
 6. `grid_node_map.pkl`
    map graph data to grid data
