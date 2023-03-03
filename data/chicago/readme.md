@@ -18,7 +18,6 @@
    40:outflow
    ***********
 
-
 2. `risk_mask.pkl`
    shape(W,H)
    top risk region mask
@@ -31,7 +30,6 @@
    road similarity graph adjacency matrix
    shape(N,N)
 
-   
 5. `grid_node_map.pkl`
    map graph data to grid data
    shape (W*H,N)
