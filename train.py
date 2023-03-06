@@ -35,7 +35,7 @@ with open(config_filename, 'r') as f:
 print(json.dumps(config, sort_keys=True, indent=4))
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 north_south_map = config['north_south_map']
 west_east_map = config['west_east_map']
@@ -97,8 +97,8 @@ def training(net,
         batch = 1
         for train_feature, target_time, graph_feature, train_label in train_loader:
             start_time = time()
-            train_feature, target_time, graph_feature, train_label = train_feature.to(device), target_time.to(
-                device), graph_feature.to(device), train_label.to(device)
+            train_feature, target_time, graph_feature, train_label = train_feature.to(device), \
+                target_time.to(device), graph_feature.to(device), train_label.to(device)
             final_output, classification_output = net(train_feature, target_time, graph_feature, road_adj, risk_adj,
                                                       poi_adj, grid_node_map)
             l = mask_loss(final_output, classification_output, train_label, risk_mask, loss_mask, data_type=data_type)
@@ -265,9 +265,10 @@ def main(config):
     else:
         poi_adj = get_adjacent(poi_adj_filename)
 
-
-    # print(remote_sensing_image.shape)
-    # exit(0)
+    # if not args.baseline:
+    #     rsdataloader = get_remote_sensing_dataloader('no_norm', 256, remote_sensing_path)
+    # else:
+    #     rsdataloader = None
     best_mae, best_mse, best_rmse = training(
         GSNet_Model,
         training_epoch,

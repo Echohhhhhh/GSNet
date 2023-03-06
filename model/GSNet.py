@@ -1,15 +1,12 @@
+import os
+import sys
+
 import torch
 import torch.nn as nn
-import torch.utils.data as Data
-import torch.optim as optim
 import torch.nn.functional as F
-import numpy as np
-import json
-from model.encoder import Encoder
-from model.AFF import AFF
 
-import sys
-import os
+from model.AFF import AFF
+from model.encoder import Encoder
 
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
@@ -306,7 +303,10 @@ class GSNet(nn.Module):
         final_output = self.output_layer(fusion_output) \
             .view(batch_size, -1, self.north_south_map, self.west_east_map)
         # classification
+        # classification_output = torch.softmax(final_output.view(final_output.shape[0], -1), dim=1)
+        # classification_output = torch.sigmoid(final_output.view(final_output.shape[0], -1))
         classification_output = torch.relu(final_output.view(final_output.shape[0], -1))
+
         # # ranking
         # _, classification_output = torch.sort(final_output.view(final_output.shape[0], -1))
         return final_output, classification_output

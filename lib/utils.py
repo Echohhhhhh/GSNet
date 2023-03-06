@@ -108,9 +108,11 @@ def mask_loss(predicts, classify_predicts, labels, region_mask, loss_mask, data_
     region_mask /= region_mask.mean()
     loss = ((labels - predicts) * region_mask) ** 2
     # classification
+    # classify_labels = torch.softmax(labels.view(labels.shape[0], -1), dim=1)
     classify_labels = labels.view(labels.shape[0], -1)
     # classify_labels = classify_labels.where(classify_labels == 0, torch.ones_like(classify_labels))
     loss2 = bce(classify_predicts, classify_labels)
+
 
     # ranking
     # _, classify_labels = torch.sort(labels.view(labels.shape[0], -1))

@@ -254,7 +254,7 @@ def get_remote_sensing_dataloader(norm, imsize, path):
              transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
         'no_norm': transforms.Compose(
             [transforms.Resize((imsize, imsize)),
-             # transforms.RandomResizedCrop(256),
+             # transforms.RandomResizedCrop(imsize/2),
              transforms.ToTensor()])
     }
     loader = loaders[norm]
