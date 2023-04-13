@@ -127,8 +127,8 @@ def training(net,
                 predict_and_evaluate(net, high_test_loader, risk_mask, road_adj, risk_adj, poi_adj, grid_node_map,
                                      global_step - 1, scaler, device)
 
-            print(
-                'global step: %s, epoch: %s, test RMSE: %.4f,test Recall: %.2f%%,test MAP: %.4f,hihg test RMSE: %.4f,high test Recall: %.2f%%,high test MAP: %.4f'
+            print('global step: %s, epoch: %s, test RMSE: %.4f,test Recall: %.2f%%,test MAP: %.4f,'
+                  'high test RMSE: %.4f,high test Recall: %.2f%%,high test MAP: %.4f'
                 % (global_step - 1, epoch, test_rmse, test_recall, test_map, high_test_rmse, high_test_recall,
                    high_test_map), flush=True)
 
@@ -154,8 +154,8 @@ def main(config):
     num_of_gru_layers = config['num_of_gru_layers']
     gru_hidden_size = config['gru_hidden_size']
     gcn_num_filter = config['gcn_num_filter']
-    # remote_sensing_filename = config['remote_sensing_filename']
-    remote_sensing_path = config['remote_sensing_path']
+    remote_sensing_feature_filename = config['remote_sensing_feature_filename']
+    remote_sensing_image_path = config['remote_sensing_image_path']
 
     loss_mask_filename = config['loss_mask_filename']
 
@@ -164,8 +164,8 @@ def main(config):
     train_data_shape = ""
     graph_feature_shape = ""
     loss_mask = get_mask(loss_mask_filename)
-    # remote_sensing = torch.load(remote_sensing_filename)
-    # print("remote_sensing.shape:", remote_sensing.shape)
+
+
     for idx, (x, y, target_times, high_x, high_y, high_target_times, scaler) in enumerate(
             normal_and_generate_dataset_time(
                     all_data_filename,
@@ -233,14 +233,19 @@ def main(config):
         nums_of_filter.append(gcn_num_filter)
 
     if not args.baseline:
-        rsdataloader = get_remote_sensing_dataloader('no_norm', 128, remote_sensing_path)
+        # pretrain
+        # remote_sensing_feature = torch.load(remote_sensing_feature_filename)
+        # print("remote_sensing.shape:", remote_sensing_feature.shape)
+        # remote_sensing_data = remote_sensing_feature
+        # together
+        rsdataloader = get_remote_sensing_dataloader('no_norm', 128, remote_sensing_image_path)
         remote_sensing_data = next(iter(rsdataloader)).get('image').to(device)
     else:
         remote_sensing_data = None
 
     GSNet_Model = GSNet(train_data_shape[2], num_of_gru_layers, seq_len, pre_len,
                         gru_hidden_size, time_shape[1], graph_feature_shape[2],
-                        nums_of_filter, north_south_map, west_east_map, None, args.baseline, remote_sensing_data)
+                        nums_of_filter, north_south_map, west_east_map,args.baseline, remote_sensing_data)
 
     # multi gpu
     if torch.cuda.device_count() > 1:

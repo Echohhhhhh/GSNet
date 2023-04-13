@@ -4,6 +4,9 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
+
+from torch import Tensor
 
 from model.AFF import AFF
 from model.encoder import Encoder
@@ -11,6 +14,28 @@ from model.encoder import Encoder
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term1 = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        div_term2 = torch.exp(torch.arange(0, d_model - 2, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term1)
+        pe[:, 0, 1::2] = torch.cos(position * div_term1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+        """
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
 
 
 class GCN_Layer(nn.Module):
@@ -65,7 +90,13 @@ class STGeoModule(nn.Module):
             nn.ReLU(),
         )
 
-        self.grid_gru = nn.GRU(grid_in_channel, gru_hidden_size, num_of_gru_layers, batch_first=True)
+        # self.grid_gru = nn.GRU(grid_in_channel, gru_hidden_size, num_of_gru_layers, batch_first=True)
+        # 转换后TransformerEncoder层（仅供参考）
+        self.positional_encoding = PositionalEncoding(d_model=grid_in_channel, dropout=0.1)  # 位置编码
+        self.transformer_encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=grid_in_channel, nhead=1, dim_feedforward=gru_hidden_size * 4),
+            num_layers=num_of_gru_layers)  # Transformer编码器
+        self.fc0 = nn.Linear(in_features=grid_in_channel, out_features=gru_hidden_size)
 
         self.grid_att_fc1 = nn.Linear(in_features=gru_hidden_size, out_features=1)
         self.grid_att_fc2 = nn.Linear(in_features=num_of_target_time_feature, out_features=seq_len)
@@ -89,7 +120,14 @@ class STGeoModule(nn.Module):
             .permute(0, 3, 4, 1, 2) \
             .contiguous() \
             .view(-1, T, D)
-        gru_output, _ = self.grid_gru(conv_output)
+
+        # gru_output, _ = self.grid_gru(conv_output)
+        # 转换后TransformerEncoder层（仅供参考）
+        x = conv_output.permute(1, 0, 2)  # 把批次大小放在第一个维度上
+        x = self.positional_encoding(x)  # 加上位置编码
+        gru_output = self.transformer_encoder(x)  # 通过Transformer编码器
+        gru_output = gru_output.permute(1, 0, 2)  # 把批次大小放在第二个维度上
+        gru_output = self.fc0(gru_output)  # 把维度转换为hidden_size
 
         grid_target_time = torch.unsqueeze(target_time_feature, 1).repeat(1, W * H, 1).view(batch_size * W * H, -1)
         grid_att_fc1_output = torch.squeeze(self.grid_att_fc1(gru_output))
@@ -143,7 +181,13 @@ class STSemModule(nn.Module):
             else:
                 self.poi_gcn.append(GCN_Layer(nums_of_graph_filters[idx - 1], num_of_filter))
 
-        self.graph_gru = nn.GRU(num_of_filter, gru_hidden_size, num_of_gru_layers, batch_first=True)
+        # self.graph_gru = nn.GRU(num_of_filter, gru_hidden_size, num_of_gru_layers, batch_first=True)
+        # 转换后TransformerEncoder层（仅供参考）
+        self.positional_encoding = PositionalEncoding(d_model=num_of_filter, dropout=0.1)  # 位置编码
+        self.transformer_encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=num_of_filter, nhead=1, dim_feedforward=gru_hidden_size * 4),
+            num_layers=num_of_gru_layers + 2)  # Transformer编码器
+        self.fc0 = nn.Linear(in_features=num_of_filter, out_features=gru_hidden_size)
 
         self.graph_att_fc1 = nn.Linear(in_features=gru_hidden_size, out_features=1)
         self.graph_att_fc2 = nn.Linear(in_features=num_of_target_time_feature, out_features=seq_len)
@@ -165,6 +209,7 @@ class STSemModule(nn.Module):
         """
         batch_size, T, D1, N = graph_feature.shape
 
+        # shape(batch_size*T,f_N,channel)=(112,243,41)
         road_graph_output = graph_feature.view(-1, D1, N).permute(0, 2, 1).contiguous()
         for gcn_layer in self.road_gcn:
             road_graph_output = gcn_layer(road_graph_output, road_adj)
@@ -173,6 +218,7 @@ class STSemModule(nn.Module):
         for gcn_layer in self.risk_gcn:
             risk_graph_output = gcn_layer(risk_graph_output, risk_adj)
 
+        # shape(batch_size*T,f_N,channel)=(112,243,64)
         graph_output = road_graph_output + risk_graph_output
 
         if poi_adj is not None:
@@ -185,7 +231,17 @@ class STSemModule(nn.Module):
             .permute(0, 2, 1, 3) \
             .contiguous() \
             .view(batch_size * N, T, -1)
-        graph_output, _ = self.graph_gru(graph_output)
+
+        # print(graph_output.shape)
+        # exit(0)
+        # graph_output, _ = self.graph_gru(graph_output)
+
+        # 转换后TransformerEncoder层（仅供参考）
+        x = graph_output.permute(1, 0, 2)  # 把批次大小放在第二个维度上
+        x = self.positional_encoding(x)  # 加上位置编码
+        graph_output = self.transformer_encoder(x)  # 通过Transformer编码器
+        graph_output = graph_output.permute(1, 0, 2)  # 把批次大小放在第一个维度上
+        graph_output = self.fc0(graph_output)  # 把维度转换为hidden_size
 
         graph_target_time = torch.unsqueeze(target_time_feature, 1).repeat(1, N, 1).view(batch_size * N, -1)
         graph_att_fc1_output = torch.squeeze(self.graph_att_fc1(graph_output))
@@ -209,7 +265,7 @@ class GSNet(nn.Module):
     def __init__(self, grid_in_channel, num_of_gru_layers, seq_len, pre_len,
                  gru_hidden_size, num_of_target_time_feature,
                  num_of_graph_feature, nums_of_graph_filters,
-                 north_south_map, west_east_map, remote_sensing, is_baseline, remote_sensing_data):
+                 north_south_map, west_east_map, is_baseline, remote_sensing_data):
         """[summary]
         
         Arguments:
@@ -225,7 +281,6 @@ class GSNet(nn.Module):
             west_east_map {int} -- the height of grid data
         """
         super(GSNet, self).__init__()
-        # self.remote_sensing = remote_sensing
         self.north_south_map = north_south_map
         self.west_east_map = west_east_map
 
@@ -244,6 +299,14 @@ class GSNet(nn.Module):
         self.is_baseline = is_baseline
         if not self.is_baseline:
             self.remote_sensing_data = remote_sensing_data
+            # pretrain
+            # 512,64,64 -> 16
+            # self.remote_sensing_conv = nn.Conv2d(in_channels=512, out_channels=16, kernel_size=1)
+            # self.remote_sensing_layer1 = nn.Linear(16 * 64 * 64, 128)
+            # self.remote_sensing_layer2 = nn.Linear(128, self.fusion_channel)
+            # self.aff = AFF(self.fusion_channel, 4)
+
+            # together
             self.encoder = Encoder()
             # 256,16,16 -> 16
             self.remote_sensing_conv = nn.Conv2d(in_channels=512, out_channels=4, kernel_size=1)
@@ -274,30 +337,24 @@ class GSNet(nn.Module):
         graph_output = self.st_sem_module(graph_feature, road_adj, risk_adj, poi_adj,
                                           target_time_feature, grid_node_map)
 
-        # print(grid_output.shape, graph_output.shape)
-        # exit(0)
-
         grid_output = self.grid_weight(grid_output)
         graph_output = self.graph_weight(graph_output)
         fusion_output = grid_output + graph_output  # 16,20,20
 
         if not self.is_baseline:
-            # # pretrain
-            # remote_output = self.remote_sensing_conv(
-            #     remote_output.view(256 * 16 * 16, 400).permute(1, 0).view(400, 256, 16, 16))
+            # pretrain
+            # remote_output = self.remote_sensing_conv(self.remote_sensing_data)
+            # remote_output = self.remote_sensing_layer1(remote_output.view(400, 16 * 64 * 64))
+            # remote_output = self.remote_sensing_layer2(remote_output)
+            # remote_output = remote_output.permute(1, 0).view(16, 20, 20).unsqueeze(0).repeat(batch_size, 1, 1, 1)
+            # fusion_output = self.aff(fusion_output, remote_output)
 
             # together
             remote_output = self.encoder(self.remote_sensing_data)
             remote_output = self.remote_sensing_conv(remote_output)
-
             remote_output = self.remote_sensing_layer(remote_output.view(400, 4 * 16 * 16))
             remote_output = remote_output.permute(1, 0).view(16, 20, 20).unsqueeze(0).repeat(batch_size, 1, 1, 1)
             fusion_output = self.aff(fusion_output, remote_output)
-
-            # remote_output = self.remote_sensing_conv(self.remote_sensing)
-            # remote_output = self.remote_sensing_layer(remote_output.view(400, 64 * 64))
-            # remote_output = remote_output.permute(1, 0).view(16, 20, 20).unsqueeze(0).repeat(batch_size, 1, 1, 1)
-            # fusion_output = self.aff(fusion_output, remote_output)
 
         fusion_output = fusion_output.view(batch_size, -1)
         final_output = self.output_layer(fusion_output) \

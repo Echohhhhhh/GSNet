@@ -12,9 +12,9 @@
     "risk_adj_filename": "data/chicago/risk_adj.pkl",
     "poi_adj_filename": "",
     "grid_node_filename": "data/chicago/grid_node_map.pkl",
-    "remote_sensing_filename": "data/chicago/remote_256_16_16_chicago.pt",
+    "remote_sensing_feature_filename": "data/chicago/remote_256_16_16_chicago.pt",
     "loss_mask_filename": "data/chicago/loss_mask.pkl",
-    "remote_sensing_path": "data/chicago_remote_transpose",
+    "remote_sensing_image_path": "data/chicago_remote_transpose",
 
     "recent_prior": 3,
     "week_prior": 4,

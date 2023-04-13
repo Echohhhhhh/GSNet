@@ -113,7 +113,6 @@ def mask_loss(predicts, classify_predicts, labels, region_mask, loss_mask, data_
     # classify_labels = classify_labels.where(classify_labels == 0, torch.ones_like(classify_labels))
     loss2 = bce(classify_predicts, classify_labels)
 
-
     # ranking
     # _, classify_labels = torch.sort(labels.view(labels.shape[0], -1))
 
@@ -159,8 +158,9 @@ def mask_loss(predicts, classify_predicts, labels, region_mask, loss_mask, data_
         loss *= ratio_mask
     # return torch.mean(loss) + 1e-8 * loss2
     # return torch.mean(loss)
-    return torch.mean(loss) + 1e-3 * loss2
+    return torch.mean(loss) + 1e-4 * loss2
     # return loss2
+
 
 def bce(y_pred, y_true, padded_value_indicator=0):
     """
@@ -178,14 +178,19 @@ def bce(y_pred, y_true, padded_value_indicator=0):
     mask = y_true == padded_value_indicator
     valid_mask = y_true != padded_value_indicator
 
+    y_pred = torch.clamp(y_pred, max=1)
+    y_true = torch.where(y_true != 0, torch.tensor(1.0).to(device), y_true)
     ls = torch.nn.BCELoss(reduction='none')(y_pred, y_true)
     ls[mask] = 0.0
 
     document_loss = torch.sum(ls, dim=-1)
-    sum_valid = torch.sum(valid_mask, dim=-1).type(torch.float32) > torch.tensor(0.0, dtype=torch.float32, device=device)
+    sum_valid = torch.sum(valid_mask, dim=-1).type(torch.float32) > torch.tensor(0.0, dtype=torch.float32,
+                                                                                 device=device)
     loss_output = torch.sum(document_loss) / torch.sum(sum_valid)
 
     return loss_output
+
+
 def listMLE(y_pred, y_true, eps=1e-10, padded_value_indicator=0):
     """
     ListMLE loss introduced in "Listwise Approach to Learning to Rank - Theory and Algorithm".
@@ -219,6 +224,7 @@ def listMLE(y_pred, y_true, eps=1e-10, padded_value_indicator=0):
     observation_loss[mask] = 0.0
 
     return torch.mean(torch.sum(observation_loss, dim=1))
+
 
 def listNet(y_pred, y_true, eps=1e-10, padded_value_indicator=0):
     """

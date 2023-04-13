@@ -12,9 +12,9 @@
     "risk_adj_filename": "data/nyc/risk_adj.pkl",
     "poi_adj_filename": "data/nyc/poi_adj.pkl",
     "grid_node_filename": "data/nyc/grid_node_map.pkl",
-    "remote_sensing_filename": "data/nyc/all_256_16_16.pt",
+    "remote_sensing_feature_filename": "data/nyc/remote_512_64_64_nyc.pt",
     "loss_mask_filename": "data/nyc/loss_mask.pkl",
-    "remote_sensing_path": "data/nyc_remote_transpose",
+    "remote_sensing_image_path": "data/nyc_remote_transpose",
 
     
     "recent_prior": 3,
@@ -28,8 +28,8 @@
     "training_epoch": 200,
     "optimizer": "adam",
 
-    "batch_size": 32,
-    "learning_rate": 3e-6,
+    "batch_size": 16,
+    "learning_rate": 1e-5,
     "num_of_gru_layers": 5,
     "gru_hidden_size": 256,
     "gcn_num_filter": 64

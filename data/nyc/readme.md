@@ -1,7 +1,7 @@
 1. `all_data.pkl`
    2013.1~2013.12，one time interval is 1h
 
-   shape(T, D, W, H),D=41
+   shape(T, D, W, H),D=48
 
    0:risk
 
